@@ -1,9 +1,11 @@
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.tasks import service
-from src.tasks.schemas import TaskCreate, TaskResponse, TaskUpdate
+from src.tasks.schemas import (TaskCreate, TaskPriority, TaskResponse,
+                               TaskStatus, TaskUpdate)
 
 router = APIRouter(prefix="/api/v1", tags=["Tasks"])
 
@@ -14,8 +16,11 @@ def create_task(payload: TaskCreate):
 
 
 @router.get("/tasks", response_model=list[TaskResponse])
-def get_all_tasks():
-    return service.get_all_tasks()
+def get_all_tasks(
+    status: Optional[TaskStatus] = Query(None),
+    priority: Optional[TaskPriority] = Query(None)
+):
+    return service.get_all_tasks(status=status, priority=priority)
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)

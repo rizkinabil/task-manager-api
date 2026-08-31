@@ -1,5 +1,7 @@
 from uuid import UUID
-from src.tasks.schemas import Task, TaskCreate, TaskUpdate
+
+from src.tasks.schemas import (Task, TaskCreate, TaskPriority, TaskStatus,
+                               TaskUpdate)
 
 # In-memory store — will be replaced with a real DB in Stage 3
 _tasks_db: dict[str, Task] = {}
@@ -11,8 +13,20 @@ def create_task(payload: TaskCreate) -> Task:
     return task
 
 
-def get_all_tasks() -> list[Task]:
-    return list(_tasks_db.values())
+def get_all_tasks(
+        status: TaskStatus | None = None, 
+        priority: TaskPriority | None = None
+) -> list[Task]:
+    filtered_task =  list(_tasks_db.values())
+
+    if status is not None:
+        filtered_task = [t for t in filtered_task if t.status == status]
+
+    if priority is not None:
+        filtered_task = [t for t in filtered_task if t.priority == priority]
+
+
+    return filtered_task
 
 
 def get_task_by_id(task_id: UUID) -> Task | None:
