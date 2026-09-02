@@ -15,18 +15,40 @@ def create_task(payload: TaskCreate) -> Task:
 
 def get_all_tasks(
         status: TaskStatus | None = None, 
-        priority: TaskPriority | None = None
-) -> list[Task]:
-    filtered_task =  list(_tasks_db.values())
+        priority: TaskPriority | None = None,
+        page: int = 1,
+        limit: int = 10
+) -> tuple[list[Task], int]:
+    """
+    Returns paginated and filtered tasks with total count.
+    
+    Args:
+        status: Optional status filter
+        priority: Optional priority filter
+        page: Page number (default 1)
+        limit: Items per page (default 10)
+    
+    Returns:
+        Tuple of (paginated_tasks, total_count)
+    """
+    filtered_tasks = list(_tasks_db.values())
 
+    # Apply filters
     if status is not None:
-        filtered_task = [t for t in filtered_task if t.status == status]
+        filtered_tasks = [t for t in filtered_tasks if t.status == status]
 
     if priority is not None:
-        filtered_task = [t for t in filtered_task if t.priority == priority]
+        filtered_tasks = [t for t in filtered_tasks if t.priority == priority]
 
+    # Get total count before pagination
+    total_count = len(filtered_tasks)
 
-    return filtered_task
+    # Apply pagination
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paginated_tasks = filtered_tasks[start_idx:end_idx]
+
+    return paginated_tasks, total_count
 
 
 def get_task_by_id(task_id: UUID) -> Task | None:

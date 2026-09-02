@@ -1,8 +1,10 @@
+from math import ceil
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from src.pagination import PaginatedTaskResponse
 from src.tasks import service
 from src.tasks.schemas import (TaskCreate, TaskPriority, TaskResponse,
                                TaskStatus, TaskUpdate)
@@ -15,12 +17,23 @@ def create_task(payload: TaskCreate):
     return service.create_task(payload)
 
 
-@router.get("/tasks", response_model=list[TaskResponse])
+@router.get("/tasks", response_model=PaginatedTaskResponse)
 def get_all_tasks(
     status: Optional[TaskStatus] = Query(None),
-    priority: Optional[TaskPriority] = Query(None)
+    priority: Optional[TaskPriority] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100)
 ):
-    return service.get_all_tasks(status=status, priority=priority)
+    tasks, total_count = service.get_all_tasks(status=status, priority=priority, page=page, limit=limit)
+    total_pages = ceil(total_count / limit) if total_count > 0 else 0
+    
+    return PaginatedTaskResponse(
+        data=[TaskResponse.model_validate(t.model_dump()) for t in tasks],
+        total=total_count,
+        page=page,
+        limit=limit,
+        pages=total_pages
+    )
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
