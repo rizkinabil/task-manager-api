@@ -1,19 +1,29 @@
 from uuid import UUID
 
-from src.tasks.schemas import (Task, TaskCreate, TaskPriority, TaskStatus,
-                               TaskUpdate)
+from sqlalchemy.orm import Session
 
-# In-memory store — will be replaced with a real DB in Stage 3
-_tasks_db: dict[str, Task] = {}
+from src.tasks.models import Task
+from src.tasks.schemas import TaskCreate, TaskPriority, TaskStatus, TaskUpdate
 
 
-def create_task(payload: TaskCreate) -> Task:
-    task = Task(**payload.model_dump())
-    _tasks_db[str(task.id)] = task
+def create_task(db: Session, payload: TaskCreate) -> Task:
+    """Create a new task in database."""
+    task = Task(
+        title=payload.title,
+        description=payload.description,
+        status=payload.status,
+        priority=payload.priority,
+        is_done=False
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    
     return task
 
 
 def get_all_tasks(
+        db: Session,
         status: TaskStatus | None = None, 
         priority: TaskPriority | None = None,
         page: int = 1,
@@ -23,6 +33,7 @@ def get_all_tasks(
     Returns paginated and filtered tasks with total count.
     
     Args:
+    
         status: Optional status filter
         priority: Optional priority filter
         page: Page number (default 1)
@@ -31,39 +42,57 @@ def get_all_tasks(
     Returns:
         Tuple of (paginated_tasks, total_count)
     """
-    filtered_tasks = list(_tasks_db.values())
+    query = db.query(Task)
 
     # Apply filters
     if status is not None:
-        filtered_tasks = [t for t in filtered_tasks if t.status == status]
+        query = query.filter(Task.status == status)
 
     if priority is not None:
-        filtered_tasks = [t for t in filtered_tasks if t.priority == priority]
+        query = query.filter(Task.priority == priority)
 
     # Get total count before pagination
-    total_count = len(filtered_tasks)
+    total_count = query.count()
 
     # Apply pagination
-    start_idx = (page - 1) * limit
-    end_idx = start_idx + limit
-    paginated_tasks = filtered_tasks[start_idx:end_idx]
+    offset= (page - 1) * limit
+    paginated_tasks = query.offset(offset).limit(limit).all()
 
     return paginated_tasks, total_count
 
 
-def get_task_by_id(task_id: UUID) -> Task | None:
-    return _tasks_db.get(str(task_id))
+def get_task_by_id(db: Session, task_id: UUID) -> Task | None:
+    """Get a single task by ID."""
+    return db.query(Task).filter(Task.id == str(task_id)).first()
 
 
-def update_task(task_id: UUID, payload: TaskUpdate) -> Task | None:
-    task = _tasks_db.get(str(task_id))
+def update_task(db: Session, task_id: UUID, payload: TaskUpdate) -> Task | None:
+    """Update task by ID."""
+
+    task = get_task_by_id(db, task_id)
+
     if not task:
         return None
-    updated = task.model_copy(update=payload.model_dump(exclude_unset=True))
-    _tasks_db[str(task_id)] = updated
-    return updated
+
+    # Update only provided fields
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(task, key, value)
+
+    db.commit()
+    db.refresh(task)
+
+    return task
 
 
-def delete_task(task_id: UUID) -> bool:
-    task = _tasks_db.pop(str(task_id), None)
-    return task is not None
+def delete_task(db: Session, task_id: UUID) -> bool:
+    """Delete single task by ID."""
+    task = get_task_by_id(db, task_id)
+    if not task:
+        return False
+
+    db.delete(task)
+    db.commit()
+
+    return True

@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+
 from src.config import settings
+from src.database import Base, engine
 from src.tasks.router import router as tasks_router
 
 app = FastAPI(
@@ -7,6 +9,8 @@ app = FastAPI(
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
 )
+
+Base.metadata.create_all(bind=engine)
 
 app.include_router(tasks_router)
 

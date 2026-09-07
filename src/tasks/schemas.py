@@ -48,10 +48,13 @@ class TaskResponse(TaskProgress):
     id: UUID
     is_done: bool
     created_at: datetime
+    model_config = {"from_attributes": True} #Enable ORM mode for SQLAlchemy
 
-
-class Task(TaskProgress):
-    """Internal task object stored in memory."""
-    id: UUID = Field(default_factory=uuid4)
-    is_done: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+"""
+@DEPRECATED: it will be removed
+"""
+# class Task(TaskProgress):
+#     """Internal task object stored in memory."""
+#     id: UUID = Field(default_factory=uuid4)
+#     is_done: bool = False
+#     created_at: datetime = Field(default_factory=datetime.utcnow)
